@@ -2,6 +2,7 @@ import autogen
 import pandas as pd
 from datetime import datetime
 import os
+from docx import Document
 
 
 # Configuration setup
@@ -251,7 +252,13 @@ motivation_letter_results = autogen.initiate_chats(
     ]
 )
 
-# motivation_letter_result = motivation_letter_results[0].summary
+motivation_letter_result = motivation_letter_results[0].summary
+
+# Save the motivation letter to a .docx file
+document = Document()
+document.add_heading('Motivation Letter', level=1)
+document.add_paragraph(motivation_letter_result)
+document.save('motivation_letter.docx')
 
 # # Output the motivation letter
 # print("Motivation Letter:\n", motivation_letter_result)
