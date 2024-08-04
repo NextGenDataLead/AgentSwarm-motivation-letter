@@ -112,6 +112,7 @@ job_description = input("Please enter the job description: ") # This is the star
 match_task = "Find the matches between the job description and the calculated experience. Reply 'MATCH_DONE' at the end."
 strategy_task = "develop a detailed strategy for crafting compelling motivation and cover letters. Include guidelines on purpose and audience analysis, content structuring, language use, unique value proposition, proofreading, and follow-up tactics. Ensure this strategy is adaptable across different types of applications and provides a blueprint for effective communication in various professional contexts."
 motivation_letter_task = "Write a motivation letter based on the matches found and the best strategy suggested. Reply 'TERMINATE' at the end."
+quality_check_task = "Review the motivation letter for clarity, coherence, grammar, and adherence to the suggested structure. Provide feedback and any necessary corrections. Reply 'QUALITY_DONE' at the end."
 
 # Define agents
 match_maker = autogen.AssistantAgent(
@@ -153,6 +154,16 @@ writing_agent = autogen.AssistantAgent(
     system_message="""
         You are a professional writer. Write a motivation letter based on the matches found and the best strategy suggested.
         Reply "TERMINATE" at the end when everything is done.
+        """,
+)
+
+quality_check_agent = autogen.AssistantAgent(
+    name="Quality_Check_Agent",
+    llm_config=llm_config,
+    system_message="""
+        You are a quality check agent. Review the motivation letter for clarity, coherence, grammar, and adherence to the suggested structure. Ensure the letter is well-formatted with proper sections and bullet points. Provide feedback and any necessary corrections.
+
+        Reply 'QUALITY_DONE' at the end. Next, if any feedback and any necessary corrections are provided reply 'REWRITE_NEEDED' at the very end
         """,
 )
 
@@ -253,6 +264,49 @@ motivation_letter_results = autogen.initiate_chats(
 )
 
 motivation_letter_result = motivation_letter_results[0].summary
+
+# Step 4: Quality check the motivation letter
+quality_check_input = f"""
+Motivation Letter: {motivation_letter_result}
+"""
+
+quality_check_results = autogen.initiate_chats(
+    [
+        {
+            "sender": user_proxy_auto,
+            "recipient": quality_check_agent,
+            "message": quality_check_task,
+            "carryover": quality_check_input,
+            "summary_method": "last_msg",
+            "max_turns": 1,
+        }
+    ]
+)
+
+quality_check_result = quality_check_results[0].summary
+
+# Ensure the quality check is complete
+if "QUALITY_DONE" not in quality_check_result and "REWRITE_NEEDED" not in quality_check_result:
+    raise Exception("Quality check did not complete successfully.")
+
+# Handle feedback if a rewrite is needed
+if "REWRITE_NEEDED" in quality_check_result:
+    feedback = quality_check_result.replace('REWRITE_NEEDED', '').strip()
+    print("Quality check feedback received, rewriting the motivation letter...")
+    
+    motivation_letter_results = autogen.initiate_chats(
+        [
+            {
+                "sender": user_proxy_auto,
+                "recipient": writing_agent,
+                "message": motivation_letter_task,
+                "carryover": motivation_letter_result + f"\n\nQuality Check Feedback: {feedback}",
+                "summary_method": "last_msg",
+                "max_turns": 1,
+            }
+        ]
+    )
+    motivation_letter_result = motivation_letter_results[0].summary
 
 # Save the motivation letter to a .docx file
 document = Document()
