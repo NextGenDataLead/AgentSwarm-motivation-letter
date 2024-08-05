@@ -14,12 +14,12 @@ This swarm of agents will create a relevant and optimized motivation letter for 
 1. Make sure you have installed Anaconda/Miniconda
 2. Clone the repository
 3. Open the folder of the repository in your terminal
-4. Run the following command to create the required conda environment with the right version of python and all dependencies installed"conda env create -f environment.yml" 
+4. Run the following command to create the required conda environment with the right version of python and all dependencies installed [conda env create -f environment.yml] 
 
 ## Preparation
 1. Make sure you fill out Resume/Resume_tabular.xlsx as best as possible
 2. Copy the file OAI_CONFIG_LIST_example in the same folder
-3. Remove the "_example" from the filenae
+3. Remove the "_example" from the file
 4. Open the file
 5. Plug in your Chat-GPT API-key where the placeholder is now
 
