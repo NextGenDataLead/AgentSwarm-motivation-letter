@@ -19,15 +19,16 @@ This swarm of agents will create a relevant and optimized motivation letter for 
 ## Preparation
 1. Make sure you fill out Resume/Resume_tabular.xlsx as best as possible
 2. Copy the file OAI_CONFIG_LIST_example in the same folder
-3. Remove the "_example" from the file
-4. Open the file
+3. Remove the "_example" from the file copied file
+4. Open the copied file
 5. Plug in your Chat-GPT API-key where the placeholder is now
 
 ## Run the script
 1. Activate the conda environment (default = "ag_local" --> [conda activate ag_local])
-2. Run the script with [python Motivation_letter.py]
-3. Paste in the job-description
-4. Wait for 30 seconds for the motivation letter to be ready
+2. Run the command [export OPENAI_API-KEY=your_api_key_here] 
+3. Run the script with [python Motivation_letter.py]
+4. Paste in the job-description as one line
+5. Wait for a minute for the motivation letter to be ready. The terminal will display the word TERMINATE on the bottom if the script has ended.
 
 ## Considerations
 - There will be placeholders that need to be filled in, for example your name.
