@@ -109,18 +109,80 @@ resume_details = "\n\n".join(
 
 # Define tasks for agents
 job_description = input("Please enter the job description: ") # This is the start of the 'conversation' where the user pastes in a job-description
-match_task = "Find the matches between the job description and the calculated experience. Reply 'MATCH_DONE' at the end."
-strategy_task = "develop a detailed strategy for crafting compelling motivation and cover letters. Include guidelines on purpose and audience analysis, content structuring, language use, unique value proposition, proofreading, and follow-up tactics. Ensure this strategy is adaptable across different types of applications and provides a blueprint for effective communication in various professional contexts."
-motivation_letter_task = "Write a motivation letter based on the matches found and the best strategy suggested. Reply 'TERMINATE' at the end."
-quality_check_task = "Review the motivation letter for clarity, coherence, grammar, and adherence to the suggested structure. Provide feedback and any necessary corrections. Reply 'QUALITY_DONE' at the end."
+match_task = """
+Your task is to find the matches between the provided job description and the candidate's calculated experience. 
+Please follow these steps:
+
+1. Analyze the job description to extract key requirements in terms of skills, sectors, functions, and tools.
+2. Compare these requirements with the candidate's experience.
+3. Identify the most relevant matches for each category (skills, sectors, functions, tools).
+4. Provide a detailed list of these matches, including a brief explanation of how each match is relevant to the job description.
+5. Highlight any unique or standout qualifications that make the candidate a strong fit for the position.
+
+Reply 'MATCH_DONE' at the end of your response.
+"""
+strategy_task = """
+Develop a comprehensive strategy for writing exceptional motivation and cover letters, considering diverse application contexts such as job applications, university admissions, and grant proposals. The strategy should include:
+
+1. Methods for identifying the purpose of each letter and aligning it with the organization's objectives.
+2. Guidelines for analyzing the intended audience to tailor the content accurately.
+3. A plan for structuring these letters and personalizing them to highlight the applicant's unique skills, passions, and qualifications. Mention relevant achievements.
+4. Guidance on using persuasive language and maintaining a professional tone.
+5. Approaches for emphasizing the applicant's unique value, focusing on specific skills or experiences that distinguish them from other candidates and benefit the organization.
+6. Best practices for proofreading and editing to ensure error-free, polished documents.
+7. Suggestions for dynamic opening lines and compelling closing statements that make a memorable impact and urge the reader to take action.
+
+Compile these guidelines into a comprehensive document.
+
+Reply 'STRATEGY_DONE' at the end of your response.
+"""
+
+motivation_letter_task = """
+Write a compelling motivation letter based on the matches found between the job description and the candidate's experience, 
+and following the provided strategy guidelines. The letter should:
+
+1. Highlight the most relevant skills, experiences, and achievements of the candidate, with a focus on key achievements and quantifiable results.
+2. Use persuasive and engaging language while maintaining a professional tone.
+3. Be well-structured, starting with a strong, engaging, and memorable opening, detailed body, and a compelling closing.
+4. Reflect the candidate's unique value and how they align with the job requirements and the company's mission and goals.
+5. Include a clear and compelling call to action.
+6. Ensure the content is coherent, clear, and free from grammatical errors.
+7. Tailor the content specifically to the job and company, demonstrating a deep understanding of their needs and culture.
+8. Include relevant keywords from the job description to ensure it passes through Applicant Tracking Systems (ATS).
+9. Showcase the candidate's enthusiasm for the role and how they fit into the company culture.
+
+Reply 'TERMINATE' at the end of your response.
+"""
+
+quality_check_task = """
+Review the motivation letter for the following criteria:
+
+1. Clarity: Ensure the content is easy to understand and free from ambiguity.
+2. Coherence: Check that the ideas flow logically and the letter is well-structured.
+3. Grammar: Correct any grammatical, spelling, or punctuation errors.
+4. Adherence to Guidelines: Ensure the letter follows the provided structure and strategy guidelines.
+5. Formatting: Verify the document is well-formatted, with proper sections and bullet points where necessary.
+6. Overall Quality: Assess the letter's overall quality, including the strength of the opening, alignment with the company’s mission and goals, and the effectiveness of the call to action.
+7. Highlighting Achievements: Ensure key achievements and quantifiable results are clearly highlighted.
+8. Tailoring: Verify that the content is specifically tailored to the job and company, demonstrating an understanding of their needs and culture.
+9. Keywords: Check that relevant keywords from the job description are included to ensure it passes through Applicant Tracking Systems (ATS).
+10. Enthusiasm and Cultural Fit: Ensure the candidate's enthusiasm for the role and cultural fit with the company are effectively showcased.
+
+Provide detailed feedback and necessary corrections. Reply 'QUALITY_DONE' at the end of your review. If revisions are needed, provide specific feedback and reply 'REWRITE_NEEDED' at the very end.
+"""
+
 
 # Define agents
 match_maker = autogen.AssistantAgent(
     name="Match_Maker",
     llm_config=llm_config,
     system_message="""
-        You are a match maker. Find the matches between the job description and the calculated experience. 
-        Reply 'MATCH_DONE' at the end.
+        You are an expert match maker for job applications. Your task is to meticulously analyze the provided job description 
+        and the candidate's calculated experience, identifying the most relevant skills, sectors, functions, and tools that 
+        match the job requirements. Your response should include a detailed list of matches along with a brief explanation 
+        of how each match is relevant to the job description. Ensure to highlight any unique or standout qualifications 
+        that make the candidate a strong fit for the position. 
+        Reply 'MATCH_DONE' at the end of your response.
         """,
 )
 
@@ -128,23 +190,28 @@ strategy_agent = autogen.AssistantAgent(
     name="Strategy_Agent",
     llm_config=llm_config,
     system_message="""
-        Strategy Agent, you are assigned to develop an advanced strategy for writing exceptional motivation and cover letters tailored to diverse applications, including job applications, university admissions, and grant proposals. Your strategy should address the following key areas:
-
-Purpose and Audience Analysis: Devise methods for identifying the purpose of each letter, aligning it with the organization's objectives, and analyzing the intended audience to tailor the content accurately.
-
-Content Structuring and Personalization: Outline a plan for structuring these letters and personalizing them to highlight the applicant's unique skills and passions, and the qualifications. Most impotantly always mention the relevant achievements.
-
-Persuasive Language Usage: Provide guidance on selecting persuasive language and maintaining a professional tone to engage the reader effectively.
-
-Highlighting Unique Value: Suggest approaches for emphasizing the applicant's unique value, highlighting particular skills or experiences that distinguish them from other candidates, focusing on specific skills or experiences that offer particular benefits to the organization.
-
-Proofreading and Editing Best Practices: Recommend protocols for ensuring that the documents are error-free and polished.
-
-Effective Openings and Closings: Suggest dynamic opening lines and compelling closing statements that will catch and hold the attention of the reader, make a memorable impact and urging them to take action. 
-
-Proceed to compile this strategy into a comprehensive document that can serve as a guideline for any individual responsible for drafting these types of letters.
-
-Reply 'STRATEGY_DONE' at the end.
+        You are an expert in crafting effective and persuasive motivation and cover letters tailored for various applications. 
+        Your task is to develop an advanced strategy for writing these letters, considering different contexts such as job applications, university admissions, and grant proposals. 
+        The strategy should encompass the following areas:
+        
+        1. **Purpose and Audience Analysis**: Provide methods to identify the purpose of each letter and align it with the organization's goals. 
+           Include guidelines for analyzing the intended audience to tailor the content appropriately.
+        
+        2. **Content Structuring and Personalization**: Suggest a plan for structuring the letters and personalizing them to highlight the applicant's unique skills, passions, and qualifications. 
+           Emphasize the importance of mentioning relevant achievements.
+        
+        3. **Persuasive Language Usage**: Offer guidance on using persuasive language and maintaining a professional tone to effectively engage the reader.
+        
+        4. **Highlighting Unique Value**: Propose strategies to emphasize the applicant's unique value, focusing on specific skills or experiences that distinguish them from other candidates 
+           and offer particular benefits to the organization.
+        
+        5. **Proofreading and Editing Best Practices**: Recommend best practices for ensuring the documents are error-free and polished.
+        
+        6. **Effective Openings and Closings**: Provide suggestions for dynamic opening lines and compelling closing statements that make a memorable impact and urge the reader to take action.
+        
+        Compile these guidelines into a comprehensive document that can serve as a blueprint for drafting motivation and cover letters.
+        
+        Reply 'STRATEGY_DONE' at the end of your response.
         """,
 )
 
@@ -152,20 +219,30 @@ writing_agent = autogen.AssistantAgent(
     name="Writing_Agent",
     llm_config=llm_config,
     system_message="""
-        You are a professional writer. Write a motivation letter based on the matches found and the best strategy suggested.
-        Reply "TERMINATE" at the end when everything is done.
+        You are a professional writer specializing in crafting compelling motivation letters. 
+        Your task is to create a motivation letter based on the matches between the job description and the candidate's experience, 
+        using the provided strategy guidelines. The letter should be persuasive, well-structured, and tailored to highlight the candidate's 
+        unique qualifications and achievements relevant to the job. Ensure the language is engaging and professional, and the content is 
+        aligned with the strategy's recommendations.
+
+        Reply 'TERMINATE' at the end of your response.
         """,
 )
+
 
 quality_check_agent = autogen.AssistantAgent(
     name="Quality_Check_Agent",
     llm_config=llm_config,
     system_message="""
-        You are a quality check agent. Review the motivation letter for clarity, coherence, grammar, and adherence to the suggested structure. Ensure the letter is well-formatted with proper sections and bullet points. Provide feedback and any necessary corrections.
+        You are a quality assurance specialist for professional documents. 
+        Your task is to review the motivation letter for clarity, coherence, grammar, and adherence to the provided structure and guidelines. 
+        Ensure the letter is well-formatted, with proper sections and bullet points where necessary. 
+        Provide detailed feedback and necessary corrections to enhance the letter's overall quality and impact.
 
-        Reply 'QUALITY_DONE' at the end. Next, if any feedback and any necessary corrections are provided reply 'REWRITE_NEEDED' at the very end
+        Reply 'QUALITY_DONE' at the end of your review. If revisions are needed, provide specific feedback and reply 'REWRITE_NEEDED' at the very end.
         """,
 )
+
 
 # User proxy agent
 user_proxy_auto = autogen.UserProxyAgent(
