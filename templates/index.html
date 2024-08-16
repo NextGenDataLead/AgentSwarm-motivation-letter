@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motivation Letter Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .step {
+            margin-bottom: 20px;
+        }
+        .step-header {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #007BFF;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input[type="file"], textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+        }
+        textarea {
+            resize: vertical;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #logs {
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-radius: 5px;
+            height: 150px;
+            overflow-y: scroll;
+            border: 1px solid #ccc;
+        }
+        #popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+        #loading {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 998;
+        }
+        .loader {
+            border: 16px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 16px solid #3498db;
+            width: 120px;
+            height: 120px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .download-template {
+            font-size: 14px;
+            color: #007BFF;
+            text-decoration: none;
+        }
+        .download-template:hover {
+            text-decoration: underline;
+        }
+        #resume-status {
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Motivation Letter Generator</h1>
+
+        <div class="step">
+            <div class="step-header">Step 1: Upload Resume (Excel file)</div>
+            <form id="upload-form">
+                <label for="file">Upload your resume <a href="https://docs.google.com/spreadsheets/d/1_fFLsJW8zW56f_IAx_6QgqRqsWbvVaYAYwjhgt4OwxM/edit?usp=sharing" class="download-template" target="_blank">(Download Excel Template)</a>:</label>
+                <input type="file" id="file" name="file">
+            </form>
+            <p id="resume-status"></p>
+        </div>
+
+        <div class="step">
+            <div class="step-header">Step 2: Input Job Description</div>
+            <textarea id="job_description" name="job_description" rows="10" cols="50" required></textarea>
+        </div>
+
+        <div class="step">
+            <div class="step-header">Step 3: Generate Motivation Letter</div>
+            <button type="button" id="generate-btn">Generate</button>
+        </div>
+
+        <div class="step">
+            <div class="step-header">Step 4: Process Logs</div>
+            <div id="logs"></div>
+        </div>
+    </div>
+
+    <div id="overlay"></div>
+    <div id="popup">
+        <h2>Process Complete</h2>
+        <p>Your motivation letter is ready for download.</p>
+        <button id="download-btn">Download</button>
+    </div>
+
+    <div id="loading">
+        <div class="loader"></div>
+    </div>
+
+    <script>
+        let resumeCached = false;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if the resume is already cached
+            const resumeStatus = document.getElementById('resume-status');
+            if (localStorage.getItem('resumeCached')) {
+                resumeStatus.innerText = "Resume already uploaded. You can override by uploading a new file.";
+                resumeCached = true;
+            } else {
+                resumeStatus.innerText = ""; // If no resume is cached, display nothing
+            }
+
+            document.getElementById('generate-btn').addEventListener('click', function() {
+                const fileInput = document.getElementById('file');
+                const jobDescription = document.getElementById('job_description').value;
+
+                if (!resumeCached && fileInput.files.length === 0) {
+                    alert("Please upload your resume.");
+                    return;
+                }
+                if (jobDescription.trim() === "") {
+                    alert("Please enter a job description.");
+                    return;
+                }
+
+                const formData = new FormData();
+                if (fileInput.files.length > 0) {
+                    // Cache the resume file
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        localStorage.setItem('resumeFile', e.target.result);
+                        localStorage.setItem('resumeCached', true);
+                        resumeStatus.innerText = "Resume already uploaded. You can override by uploading a new file.";
+                        resumeCached = true;
+                    };
+                    reader.readAsDataURL(fileInput.files[0]);
+                    formData.append('file', fileInput.files[0]);
+                } else if (resumeCached) {
+                    // Use cached resume
+                    const cachedResume = localStorage.getItem('resumeFile');
+                    if (cachedResume) {
+                        const fileBlob = dataURLToBlob(cachedResume);
+                        formData.append('file', fileBlob, 'resume.xlsx');
+                    }
+                }
+
+                formData.append('job_description', jobDescription);
+
+                // Show loading animation
+                document.getElementById('loading').style.display = 'block';
+
+                // Send the form data to the server
+                fetch('/upload', {
+                    method: 'POST',
+                    body: formData,
+                })
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    document.getElementById('download-btn').setAttribute('data-url', url);
+
+                    // Hide loading animation and show popup
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('overlay').style.display = 'block';
+                    document.getElementById('popup').style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('loading').style.display = 'none';
+                });
+            });
+
+            document.getElementById('download-btn').addEventListener('click', function() {
+                const url = this.getAttribute('data-url');
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'motivation_letter.docx';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                // Close popup and reset form (but keep resume cached)
+                document.getElementById('overlay').style.display = 'none';
+                document.getElementById('popup').style.display = 'none';
+                document.getElementById('job_description').value = "";
+                document.getElementById('logs').innerText = "";
+            });
+        });
+
+        // Function to log messages to the log section
+        function logMessage(message) {
+            const logs = document.getElementById('logs');
+            logs.innerText += message + "\n";
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        // Simulate logs
+        function simulateProcess() {
+            logMessage("Step 1: File upload started...");
+            setTimeout(() => logMessage("Step 1: File upload completed."), 1000);
+            setTimeout(() => logMessage("Step 2: Analyzing job description..."), 1500);
+            setTimeout(() => logMessage("Step 2: Job description analysis completed."), 2000);
+            setTimeout(() => logMessage("Step 3: Generating motivation letter..."), 2500);
+            setTimeout(() => logMessage("Step 3: Motivation letter generation completed."), 3000);
+            setTimeout(() => logMessage("Step 4: Process complete. Ready for download."), 3500);
+        }
+
+        document.getElementById('generate-btn').addEventListener('click', simulateProcess);
+
+        // Helper function to convert data URL to Blob
+        function dataURLToBlob(dataURL) {
+            const parts = dataURL.split(';base64,');
+            const byteString = atob(parts[1]);
+            const mimeString = parts[0].split(':')[1];
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+            return new Blob([ab], { type: mimeString });
+        }
+    </script>
+</body>
+</html>

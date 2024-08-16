@@ -8,3 +8,17 @@ OAI_CONFIG_LIST
 Sequence_test_ext.py
 Sequence_test.py
 motivation_letter.docx
+
+# Ignore Python bytecode
+*.pyc
+__pycache__/
+
+# Ignore environment-specific files
+.env
+*.env
+
+
+# Ignore other unnecessary files or folders
+.idea/
+.vscode/
+.DS_Store
