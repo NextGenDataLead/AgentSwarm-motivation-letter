@@ -2,45 +2,53 @@ name: ag_local
 channels:
   - defaults
 dependencies:
-  - _libgcc_mutex=0.1=main
-  - _openmp_mutex=5.1=1_gnu
-  - bzip2=1.0.8=h5eee18b_6
-  - ca-certificates=2024.7.2=h06a4308_0
-  - ld_impl_linux-64=2.38=h1181459_1
-  - libffi=3.4.4=h6a678d5_1
-  - libgcc-ng=11.2.0=h1234567_1
-  - libgomp=11.2.0=h1234567_1
-  - libstdcxx-ng=11.2.0=h1234567_1
-  - libuuid=1.41.5=h5eee18b_0
-  - ncurses=6.4=h6a678d5_0
-  - openssl=3.0.14=h5eee18b_0
-  - pip=24.0=py311h06a4308_0
-  - python=3.11.9=h955ad1f_0
-  - readline=8.2=h5eee18b_0
-  - setuptools=69.5.1=py311h06a4308_0
-  - sqlite=3.45.3=h5eee18b_0
-  - tk=8.6.14=h39e8969_0
-  - wheel=0.43.0=py311h06a4308_0
-  - xz=5.4.6=h5eee18b_1
-  - zlib=1.2.13=h5eee18b_1
+  - _libgcc_mutex=0.1
+  - _openmp_mutex=5.1
+  - bzip2=1.0.8
+  - ca-certificates=2024.7.2
+  - ld_impl_linux-64=2.38
+  - libffi=3.4.4
+  - libgcc-ng=11.2.0
+  - libgomp=11.2.0
+  - libstdcxx-ng=11.2.0
+  - libuuid=1.41.5
+  - ncurses=6.4
+  - openssl=3.0.14
+  - pip=24.0
+  - python=3.11.9
+  - readline=8.2
+  - setuptools=69.5.1
+  - sqlite=3.45.3
+  - tk=8.6.14
+  - wheel=0.43.0
+  - xz=5.4.6
+  - zlib=1.2.13
   - pip:
       - annotated-types==0.7.0
       - anyio==4.4.0
       - beautifulsoup4==4.12.3
+      - bidict==0.23.1
+      - blinker==1.8.2
       - certifi==2024.7.4
       - charset-normalizer==3.3.2
+      - click==8.1.7
       - diskcache==5.6.3
       - distro==1.9.0
       - docker==7.1.0
       - et-xmlfile==1.1.0
       - flaml==2.1.2
+      - flask==3.0.3
+      - flask-socketio==5.3.6
       - frozendict==2.4.4
       - h11==0.14.0
       - html5lib==1.1
       - httpcore==1.0.5
       - httpx==0.27.0
       - idna==3.7
+      - itsdangerous==2.2.0
+      - jinja2==3.1.4
       - lxml==5.2.2
+      - markupsafe==2.1.5
       - multitasking==0.0.11
       - newsapi-python==0.2.7
       - numpy==1.26.4
@@ -56,9 +64,12 @@ dependencies:
       - python-dateutil==2.9.0.post0
       - python-docx==1.1.2
       - python-dotenv==1.0.1
+      - python-engineio==4.9.1
+      - python-socketio==5.11.3
       - pytz==2024.1
       - regex==2024.7.24
       - requests==2.32.3
+      - simple-websocket==1.0.0
       - six==1.16.0
       - sniffio==1.3.1
       - soupsieve==2.5
@@ -69,5 +80,7 @@ dependencies:
       - tzdata==2024.1
       - urllib3==2.2.2
       - webencodings==0.5.1
+      - werkzeug==3.0.3
+      - wsproto==1.2.0
       - yfinance==0.2.41
 prefix: /home/jimbojay/miniconda3/envs/ag_local
