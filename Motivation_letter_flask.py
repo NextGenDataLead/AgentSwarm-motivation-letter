@@ -73,6 +73,7 @@ def calculate_experience(df):
 
 def generate_motivation_letter(df, job_description):
     
+    print("calculate experience")
     # Calculate experience from the DataFrame
     experience = calculate_experience(df)
 

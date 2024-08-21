@@ -132,7 +132,9 @@
                 <input type="file" id="file" name="file">
             </form>
             <p id="resume-status"></p>
+            <p id="resume-details"></p> <!-- New line for displaying filename and upload time -->
         </div>
+        
 
         <div class="step">
             <div class="step-header">Step 2: Input Job Description</div>
@@ -284,6 +286,95 @@
             }
             return new Blob([ab], { type: mimeString });
         }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const resumeStatus = document.getElementById('resume-status');
+            const resumeDetails = document.getElementById('resume-details'); // New reference for displaying details
+
+            if (localStorage.getItem('resumeCached')) {
+                const filename = localStorage.getItem('resumeFilename');
+                const uploadTime = localStorage.getItem('resumeUploadTime');
+                resumeStatus.innerText = "Resume already uploaded.";
+                resumeDetails.innerText = `Filename: ${filename}, Uploaded on: ${uploadTime}`; // Display filename and upload time
+                resumeCached = true;
+            } else {
+                resumeStatus.innerText = ""; // If no resume is cached, display nothing
+            }
+
+            document.getElementById('generate-btn').addEventListener('click', function() {
+                const fileInput = document.getElementById('file');
+                const jobDescription = document.getElementById('job_description').value;
+
+                if (!resumeCached && fileInput.files.length === 0) {
+                    alert("Please upload your resume.");
+                    return;
+                }
+                if (jobDescription.trim() === "") {
+                    alert("Please enter a job description.");
+                    return;
+                }
+
+                const formData = new FormData();
+                if (fileInput.files.length > 0) {
+                    // Cache the resume file
+                    const file = fileInput.files[0];
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        localStorage.setItem('resumeFile', e.target.result);
+                        localStorage.setItem('resumeCached', true);
+                        localStorage.setItem('resumeFilename', file.name); // Save filename
+                        const currentTime = new Date().toLocaleString();
+                        localStorage.setItem('resumeUploadTime', currentTime); // Save upload time
+                        resumeStatus.innerText = "Resume already uploaded.";
+                        resumeDetails.innerText = `Filename: ${file.name}, Uploaded on: ${currentTime}`; // Display filename and upload time
+                        resumeCached = true;
+                    };
+                    reader.readAsDataURL(file);
+                    formData.append('file', file);
+                } else if (resumeCached) {
+                    const cachedResume = localStorage.getItem('resumeFile');
+                    if (cachedResume) {
+                        const fileBlob = dataURLToBlob(cachedResume);
+                        formData.append('file', fileBlob, 'resume.xlsx');
+                    }
+                }
+
+                formData.append('job_description', jobDescription);
+
+                document.getElementById('loading').style.display = 'block';
+
+                fetch('/upload', {
+                    method: 'POST',
+                    body: formData,
+                })
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    document.getElementById('download-btn').setAttribute('data-url', url);
+
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('overlay').style.display = 'block';
+                    document.getElementById('popup').style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    document.getElementById('loading').style.display = 'none';
+                });
+            });
+
+            function dataURLToBlob(dataURL) {
+                const parts = dataURL.split(';base64,');
+                const byteString = atob(parts[1]);
+                const mimeString = parts[0].split(':')[1];
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                for (let i = 0; i < byteString.length; i++) {
+                    ia[i] = byteString.charCodeAt(i);
+                }
+                return new Blob([ab], { type: mimeString });
+            }
+        });
+
     </script>
 </body>
 </html>
