@@ -10,14 +10,14 @@ config_list = autogen.config_list_from_json(env_or_file="OAI_CONFIG_LIST")
 llm_config = {"config_list": config_list}
 
 # Fetch the resume data
-excel_file_path = os.path.join(os.getcwd(), 'Resume', 'Resume_tabular.xlsx') # Define the relative path to the Excel file
+excel_file_path = os.path.join(os.getcwd(), 'Resume', 'Resume_tabular_LONG.xlsx') # Define the relative path to the Excel file
 
 if not os.path.exists(excel_file_path): # Verify the file path
     raise FileNotFoundError(f"The file at path {excel_file_path} was not found. Please check the path and try again.")
 
 sheet_name = 'Jobs' # Load data from the Excel file
 
-df = pd.read_excel(excel_file_path, sheet_name=sheet_name) # Read the Excel file
+resume = pd.read_excel(excel_file_path, sheet_name=sheet_name) # Read the Excel file
 
 # Calculate the ranges of experiene in skills, sectors, functions and tooling. E.g. [(2015, 2017), (2013, 2014)]
 def merge_date_ranges(ranges):
@@ -40,7 +40,7 @@ def merge_date_ranges(ranges):
     return merged_ranges
 
 # Calculate the actual years of experience in skills, sectors, functions and tooling
-def calculate_experience(df):
+def calculate_experience(resume):
     experience = {
         "skills": {},
         "sector": {},
@@ -53,7 +53,7 @@ def calculate_experience(df):
             experience_dict[category] = []
         experience_dict[category].append((start_year, end_year))
 
-    for index, job in df.iterrows():
+    for index, job in resume.iterrows():
         start_year = int(job['Start'])
         end_year = int(job['End']) if job['End'] else datetime.now().year
 
@@ -87,7 +87,7 @@ def calculate_experience(df):
     return experience
 
 # Calculate experience
-experience = calculate_experience(df)
+experience = calculate_experience(resume)
 
 # Print the calculated experience
 # print("Experience calculated from Excel file:")
@@ -97,13 +97,13 @@ resume_details = "\n\n".join(
     f"Company: {row['Company']}\n"
     f"Sector: {row['Sector']}\n"
     f"Function: {row['Function']}\n"
-    f"Job Description: {row['Job_description']}\n"
+    f"Job Description Resume: {row['Job_description']}\n"
     f"Achievements: {row['Achievements']}\n"
     f"Tools and Technologies Used: {row['Tools_and_technologies_used']}\n"
     f"Skills: {row['Skills']}\n"
     f"Start: {row['Start']}\n"
     f"End: {row['End']}"
-    for _, row in df.iterrows()
+    for _, row in resume.iterrows()
 )
 
 
