@@ -10,12 +10,25 @@ import pandas as pd
 import os
 import datetime
 import autogen
+from fastapi.middleware.cors import CORSMiddleware
+
 
 # Configuration setup
 config_list = autogen.config_list_from_json(env_or_file="OAI_CONFIG_LIST")
-llm_config = {"config_list": config_list}
+filtered_config_list = [item for item in config_list if item["model"] == "gpt-4"]
+# print(filtered_config_list)
+
+llm_config = {"config_list": filtered_config_list}
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Or replace "*" with your Netlify URL or other trusted domains
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Serve static files (HTML, CSS, etc.)
 app.mount("/static", StaticFiles(directory="static"), name="static")

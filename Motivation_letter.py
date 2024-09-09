@@ -7,7 +7,11 @@ from docx import Document
 
 # Configuration setup
 config_list = autogen.config_list_from_json(env_or_file="OAI_CONFIG_LIST")
-llm_config = {"config_list": config_list}
+
+filtered_config_list = [item for item in config_list if item["model"] == "gpt-4"]
+# print(filtered_config_list)
+
+llm_config = {"config_list": filtered_config_list}
 
 # Fetch the resume data
 excel_file_path = os.path.join(os.getcwd(), 'Resume', 'Resume_tabular_LONG.xlsx') # Define the relative path to the Excel file

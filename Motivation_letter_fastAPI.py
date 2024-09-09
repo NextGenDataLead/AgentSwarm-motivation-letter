@@ -1,137 +1,67 @@
-import autogen
-import pandas as pd
-from datetime import datetime
+from fastapi import FastAPI, File, UploadFile, Form, Depends
+from fastapi.responses import RedirectResponse
+from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+from typing import Optional
+from io import BytesIO
 from docx import Document
-from fastapi import FastAPI, UploadFile, File, HTTPException, Form
-from fastapi.responses import FileResponse
-import io
-import asyncio
-from transformers import pipeline
-from fastapi.middleware.cors import CORSMiddleware
-
-app = FastAPI()
-
-# Allow cross-origin requests from localhost:8080 (where the HTML page is served)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:8080"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Global cache for resumes and generated documents
-resume_cache = {}
-document_cache = {}
+import pandas as pd
+import os
+import datetime
+import autogen
 
 # Configuration setup
 config_list = autogen.config_list_from_json(env_or_file="OAI_CONFIG_LIST")
 llm_config = {"config_list": config_list}
 
-# Endpoint to check the status of the letter generation
-# Endpoint to check the status of the letter generation
-@app.get("/check-status/{filename}")
-async def check_status(filename: str):
-    if filename in document_cache:
-        return {"status": "done"}
-    elif filename in resume_cache:
-        return {"status": "in_progress"}
-    else:
-        return {"status": "not_found", "detail": "File not found"}
+app = FastAPI()
 
-# Endpoint to upload resume (Excel file) and job description
-@app.post("/upload-resume/")
-async def upload_resume(
-    file: UploadFile = File(...),
-    job_description: str = Form(...)
+# Serve static files (HTML, CSS, etc.)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Root route that redirects to the static index.html
+@app.get("/")
+async def serve_index():
+    return RedirectResponse(url="/static/index.html")
+
+# Endpoint for resume upload and job description input
+@app.post("/generate-letter/")
+async def generate_motivation_letter(
+    resume_file: UploadFile = File(...), job_description: str = Form(...)
 ):
-    try:
-        if not file.filename.endswith(".xlsx"):
-            raise HTTPException(status_code=400, detail="Invalid file format. Please upload an Excel file.")
-
-        contents = await file.read()
-        df = pd.read_excel(io.BytesIO(contents), sheet_name="Jobs")
-        
-        resume_cache[file.filename] = {"df": df, "job_description": job_description}
-        return {"filename": file.filename, "message": "Resume and Job Description uploaded successfully!"}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    # Read resume file and cache it in-memory for the user session
+    resume_df = pd.read_excel(resume_file.file, sheet_name='Jobs')
     
-# Function to generate motivation letter (replace this with your original logic)
-def generate_motivation_letter(resume_data):
-    resume = resume_data["df"]
-    job_description = resume_data["job_description"]
+    # # Store resume and job description in user cache
+    # user_cache['resume'] = resume_df
+    # user_cache['job_description'] = job_description
 
-    # Calculate the ranges of experiene in skills, sectors, functions and tooling. E.g. [(2015, 2017), (2013, 2014)]
-    def merge_date_ranges(ranges):
-        if not ranges:
-            return []
+    # Call the multi-agent system to generate the letter
+    # motivation_letter_result = run_letter_creation_process(user_cache['resume'], user_cache['job_description'])
+    motivation_letter_result = run_letter_creation_process(resume_df, job_description)
 
-        sorted_ranges = sorted(ranges, key=lambda x: x[0])
-        merged_ranges = []
-        current_start, current_end = sorted_ranges[0]
+    # Generate motivation letter as a Word document in-memory
+    document = Document()
+    document.add_heading('Motivation Letter', level=1)
+    document.add_paragraph(motivation_letter_result)
+    
+    # Prepare the file for download without storing it locally
+    file_stream = BytesIO()
+    document.save(file_stream)
+    file_stream.seek(0)
 
-        for start, end in sorted_ranges[1:]:
-            if start <= current_end:
-                current_end = max(current_end, end)
-            else:
-                merged_ranges.append((current_start, current_end))
-                current_start, current_end = start, end
-        merged_ranges.append((current_start, current_end))
-        
-        # print(f"Merged ranges: {merged_ranges}")  # Debug statement
-        return merged_ranges
+    # Provide file download response using StreamingResponse
+    return StreamingResponse(
+        file_stream,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": "attachment; filename=motivation_letter.docx"}
+    )
 
-    # Calculate the actual years of experience in skills, sectors, functions and tooling
-    def calculate_experience(resume):
-        experience = {
-            "skills": {},
-            "sector": {},
-            "function": {},
-            "tools": {}
-        }
 
-        def add_experience(experience_dict, category, start_year, end_year):
-            if category not in experience_dict:
-                experience_dict[category] = []
-            experience_dict[category].append((start_year, end_year))
-
-        for index, job in resume.iterrows():
-            start_year = int(job['Start'])
-            end_year = int(job['End']) if job['End'] else datetime.now().year
-
-            # Process skills
-            for skill in job['Skills'].split(','):
-                skill = skill.strip()
-                add_experience(experience['skills'], skill, start_year, end_year)
-
-            # Process sector
-            sector = job['Sector'].strip()
-            add_experience(experience['sector'], sector, start_year, end_year)
-
-            # Process function
-            function = job['Function'].strip()
-            add_experience(experience['function'], function, start_year, end_year)
-
-            # Process tools
-            for tool in job['Tools_and_technologies_used'].split(','):
-                tool = tool.strip()
-                add_experience(experience['tools'], tool, start_year, end_year)
-
-        # Merge date ranges and calculate unique years of experience
-        for category in experience:
-            for key in experience[category]:
-                # print(f"Category: {category}, Key: {key}, Ranges before merge: {experience[category][key]}")  # Debug statement
-                merged_ranges = merge_date_ranges(experience[category][key])
-                unique_years = sum(end - start + 1 for start, end in merged_ranges)
-                experience[category][key] = unique_years
-                # print(f"Category: {category}, Key: {key}, Unique years: {unique_years}")  # Debug statement
-
-        return experience
-
+def run_letter_creation_process(resume_df, job_description):
     # Calculate experience
-    experience = calculate_experience(resume)
+    experience = calculate_experience(resume_df)
 
     # Print the calculated experience
     # print("Experience calculated from Excel file:")
@@ -147,7 +77,7 @@ def generate_motivation_letter(resume_data):
         f"Skills: {row['Skills']}\n"
         f"Start: {row['Start']}\n"
         f"End: {row['End']}"
-        for _, row in resume.iterrows()
+        for _, row in resume_df.iterrows()
     )
 
 
@@ -315,7 +245,7 @@ def generate_motivation_letter(resume_data):
 
     # Step 1: Find matches between job description and calculated experience
     match_task_with_experience = f"""
-    Match task: {match_task}
+    Match Task: {match_task}
     Job Description: {job_description}
     Calculated Experience: {experience_input}
     """
@@ -428,54 +358,79 @@ def generate_motivation_letter(resume_data):
                 }
             ]
         )
+
         motivation_letter_result = motivation_letter_results[0].summary
 
-    # Save the motivation letter to a .docx file
-    document = Document()
-    document.add_heading('Motivation Letter', level=1)
-    document.add_paragraph(motivation_letter_result)
-    # document.save('motivation_letter.docx')
-    # return document
+        return motivation_letter_result
 
-    # Save the document to an in-memory buffer
-    file_stream = io.BytesIO()
-    document.save(file_stream)
-    file_stream.seek(0)
 
-    return file_stream
+# Calculate the ranges of experiene in skills, sectors, functions and tooling. E.g. [(2015, 2017), (2013, 2014)]
+def merge_date_ranges(ranges):
+    if not ranges:
+        return []
 
-    # # Output the motivation letter
-    # print("Motivation Letter:\n", motivation_letter_result)
+    sorted_ranges = sorted(ranges, key=lambda x: x[0])
+    merged_ranges = []
+    current_start, current_end = sorted_ranges[0]
 
-# Endpoint to process the resume and generate a document (motivation letter)
-@app.get("/generate-letter/{filename}")
-async def generate_letter(filename: str):
-    if filename not in resume_cache:
-        raise HTTPException(status_code=404, detail="Resume not found in cache")
-
-    # If the document is already cached, return it
-    if filename in document_cache:
-        return {"filename": filename, "message": "Document already generated"}
-
-    resume_data = resume_cache[filename]
+    for start, end in sorted_ranges[1:]:
+        if start <= current_end:
+            current_end = max(current_end, end)
+        else:
+            merged_ranges.append((current_start, current_end))
+            current_start, current_end = start, end
+    merged_ranges.append((current_start, current_end))
     
-    # Simulate long-running process using asyncio.sleep
-    await asyncio.sleep(5)  # Simulate a 5-second processing delay
+    # print(f"Merged ranges: {merged_ranges}")  # Debug statement
+    return merged_ranges
 
-    # Generate the motivation letter
-    document = generate_motivation_letter(resume_data)
-    document_cache[filename] = document
+# Calculate the actual years of experience in skills, sectors, functions and tooling
+def calculate_experience(resume):
+    experience = {
+        "skills": {},
+        "sector": {},
+        "function": {},
+        "tools": {}
+    }
 
-    return {"filename": filename, "message": "Document generated"}
+    def add_experience(experience_dict, category, start_year, end_year):
+        if category not in experience_dict:
+            experience_dict[category] = []
+        experience_dict[category].append((start_year, end_year))
 
-# Endpoint to download the generated document
-@app.get("/download-letter/{filename}")
-async def download_letter(filename: str):
-    if filename not in document_cache:
-        raise HTTPException(status_code=404, detail="Generated document not found. Generate it first.")
-    
-    # Fetch the cached document for download
-    document = document_cache[filename]
+    for index, job in resume.iterrows():
+        start_year = int(job['Start'])
+        end_year = int(job['End']) if job['End'] else datetime.now().year
 
-    # Send the document as a file response for download
-    return FileResponse(document, media_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document', filename="motivation_letter.docx")
+        # Process skills
+        for skill in job['Skills'].split(','):
+            skill = skill.strip()
+            add_experience(experience['skills'], skill, start_year, end_year)
+
+        # Process sector
+        sector = job['Sector'].strip()
+        add_experience(experience['sector'], sector, start_year, end_year)
+
+        # Process function
+        function = job['Function'].strip()
+        add_experience(experience['function'], function, start_year, end_year)
+
+        # Process tools
+        for tool in job['Tools_and_technologies_used'].split(','):
+            tool = tool.strip()
+            add_experience(experience['tools'], tool, start_year, end_year)
+
+    # Merge date ranges and calculate unique years of experience
+    for category in experience:
+        for key in experience[category]:
+            # print(f"Category: {category}, Key: {key}, Ranges before merge: {experience[category][key]}")  # Debug statement
+            merged_ranges = merge_date_ranges(experience[category][key])
+            unique_years = sum(end - start + 1 for start, end in merged_ranges)
+            experience[category][key] = unique_years
+            # print(f"Category: {category}, Key: {key}, Unique years: {unique_years}")  # Debug statement
+
+    return experience
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
