@@ -77,8 +77,8 @@ def run_letter_creation_process(resume_df, job_description):
     experience = calculate_experience(resume_df)
 
     # Print the calculated experience
-    # print("Experience calculated from Excel file:")
-    # print(experience)
+    print("Experience calculated from Excel file:")
+    print(experience)
 
     resume_details = "\n\n".join(
         f"Company: {row['Company']}\n"
@@ -394,7 +394,7 @@ def merge_date_ranges(ranges):
             current_start, current_end = start, end
     merged_ranges.append((current_start, current_end))
     
-    # print(f"Merged ranges: {merged_ranges}")  # Debug statement
+    print(f"Merged ranges: {merged_ranges}")  # Debug statement
     return merged_ranges
 
 # Calculate the actual years of experience in skills, sectors, functions and tooling

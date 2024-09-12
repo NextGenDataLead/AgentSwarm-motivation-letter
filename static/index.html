@@ -9,7 +9,7 @@
 <body>
     <div class="container">
         <h1>Generate Your Motivation Letter</h1>
-        <form id="upload-form" enctype="multipart/form-data" action="http://localhost:8000/generate-letter">
+        <form id="upload-form" enctype="multipart/form-data" action="http://0.0.0.0:5000/generate-letter">
             <div class="form-group">
                 <label for="resume">Upload Resume (Excel File):</label>
                 <input type="file" id="resume" name="resume_file" required>
@@ -36,7 +36,7 @@
             const form = document.getElementById('upload-form');
             const formData = new FormData(form);
 
-            const response = await fetch('http://localhost:8000/generate-letter', {
+            const response = await fetch('http://localhost:5000/generate-letter', {
                 method: 'POST',
                 body: formData
             });
