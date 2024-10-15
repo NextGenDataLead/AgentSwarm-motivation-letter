@@ -1,3 +1,21 @@
+note from aleks:
+
+use "Motivation_letter_fastAPI2.py", disregard the rest until we organize everything better
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Agent Swarm motivation letter
 
 This swarm of agents will create a relevant and optimized motivation letter for any job-description i.c.w. your resume

@@ -1,0 +1,8 @@
+[
+    {
+        "model": "mistral-instruct-7b",
+        "api_base": "http://127.0.0.1:7860/v1",
+        "api_type": "open_ai",
+        "api_key": "sk-111111111111111111111111111111111111111111111111"
+    }
+]

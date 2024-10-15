@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -221,3 +222,65 @@
     </script>
 </body>
 </html>
+=======
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motivation Letter Generator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Generate Your Motivation Letter</h1>
+        <form id="upload-form" enctype="multipart/form-data" action="http://0.0.0.0:5000/generate-letter">
+            <div class="form-group">
+                <label for="resume">Upload Resume (Excel File):</label>
+                <input type="file" id="resume" name="resume_file" required>
+            </div>
+
+            <div class="form-group">
+                <label for="job_description">Job Description:</label>
+                <textarea id="job_description" name="job_description" placeholder="Enter the job description" required></textarea>
+            </div>
+
+            <button type="submit">Generate Letter</button>
+        </form>
+
+        <div id="result" style="display:none;">
+            <h3>Your Motivation Letter is Ready!</h3>
+            <a id="download-link" href="#">Download Motivation Letter</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('upload-form').addEventListener('submit', async function(event) {
+            event.preventDefault(); // Prevent traditional form submission
+
+            const form = document.getElementById('upload-form');
+            const formData = new FormData(form);
+
+            const response = await fetch('http://localhost:5000/generate-letter', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+
+                const resultDiv = document.getElementById('result');
+                const downloadLink = document.getElementById('download-link');
+                downloadLink.href = url;
+                downloadLink.download = "Motivation_Letter.docx";
+                resultDiv.style.display = 'block';
+            } else {
+                alert('Error generating motivation letter');
+            }
+        });
+    </script>
+</body>
+</html>
+
+>>>>>>> 79a0cb5e42c981979d4154fe6b0d8b2bcddb2dcc
