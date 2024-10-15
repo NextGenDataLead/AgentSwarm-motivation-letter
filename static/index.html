@@ -5,14 +5,71 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Motivation Letter Generator</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Styling the gear icon */
+        .gear-icon {
+            font-size: 24px;
+            cursor: pointer;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        /* Settings overlay */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .overlay-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 300px;
+            text-align: center;
+        }
+
+        .close-overlay {
+            cursor: pointer;
+            float: right;
+            font-size: 20px;
+        }
+
+        /* Warning message and arrow */
+        .warning-message {
+            color: red;
+            display: none;
+            margin-bottom: 10px;
+        }
+
+        /* .arrow {
+            display: none;
+            margin-bottom: 10px;
+            font-size: 24px;
+            text-align: center;
+        } */
+    </style>
 </head>
 <body>
     <div class="container">
         <h1>Generate Your Motivation Letter</h1>
-        <form id="upload-form" enctype="multipart/form-data" action="http://localhost:8000/generate-letter">
+
+        <!-- Warning message and arrow if no API key is provided -->
+        <div class="warning-message">⚠️ No API key provided. Please add one using the gear icon.</div>
+        <!-- <div class="arrow">⬇️</div> -->
+
+        <!-- File Upload and Job Description Form -->
+        <form id="upload-form" enctype="multipart/form-data">
             <div class="form-group">
                 <label for="resume">Upload Resume (Excel File):</label>
-                <input type="file" id="resume" name="resume_file" required>
+                <input type="file" id="resume" name="resume_file" accept=".xlsx" required>
             </div>
 
             <div class="form-group">
@@ -23,23 +80,126 @@
             <button type="submit">Generate Letter</button>
         </form>
 
+        <div id="loading" style="display: none;">&nbsp;</div>
+        <div id="log-container" style="display: none;">
+            <h3>Generation Progress</h3>
+            <div id="log-messages"></div>
+        </div>
         <div id="result" style="display:none;">
             <h3>Your Motivation Letter is Ready!</h3>
             <a id="download-link" href="#">Download Motivation Letter</a>
         </div>
+
+        <!-- Gear icon for settings -->
+        <div class="gear-icon" id="gear-icon">⚙️</div>
+
+        <!-- Settings overlay for API key input -->
+        <div class="overlay" id="settings-overlay">
+            <div class="overlay-content">
+                <span class="close-overlay" id="close-overlay">&times;</span>
+                <h2>API Key Settings</h2>
+                <form id="api-key-form">
+                    <div class="form-group">
+                        <label for="api_key">OpenAI API Key:</label>
+                        <input type="password" id="api_key" name="api_key" placeholder="sk-..." required>
+                    </div>
+                    <button type="submit">Save API Key</button>
+                    <button type="button" id="delete-key">Delete API Key</button>
+                </form>
+            </div>
+        </div>
     </div>
 
     <script>
+        // Manage API Key
+        const gearIcon = document.getElementById('gear-icon');
+        const overlay = document.getElementById('settings-overlay');
+        const closeOverlay = document.getElementById('close-overlay');
+        const warningMessage = document.querySelector('.warning-message');
+        // const arrow = document.querySelector('.arrow');
+        const apiKeyForm = document.getElementById('api-key-form');
+        const deleteKeyButton = document.getElementById('delete-key');
+
+        // Show overlay when gear icon is clicked
+        gearIcon.addEventListener('click', () => {
+            overlay.style.display = 'flex';
+        });
+
+        // Close overlay
+        closeOverlay.addEventListener('click', () => {
+            overlay.style.display = 'none';
+        });
+
+        // Check if API key exists in sessionStorage and show/hide warning
+        function checkApiKey() {
+            const apiKey = sessionStorage.getItem('api_key');
+            if (!apiKey) {
+                warningMessage.style.display = 'block';
+                // arrow.style.display = 'block';
+            } else {
+                warningMessage.style.display = 'none';
+                // arrow.style.display = 'none';
+            }
+        }
+
+        // Handle API key form submission
+        apiKeyForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const apiKey = document.getElementById('api_key').value;
+            sessionStorage.setItem('api_key', apiKey);
+            overlay.style.display = 'none';
+            checkApiKey();  // Re-check API key after saving
+        });
+
+        // Delete the stored API key
+        deleteKeyButton.addEventListener('click', () => {
+            sessionStorage.removeItem('api_key');
+            document.getElementById('api_key').value = '';  // Clear the input field
+            overlay.style.display = 'none';
+            checkApiKey();  // Re-check API key after deletion
+        });
+
+        // Initial check on page load
+        checkApiKey();
+
+        // File upload and letter generation logic
         document.getElementById('upload-form').addEventListener('submit', async function(event) {
-            event.preventDefault(); // Prevent traditional form submission
+            event.preventDefault();
+
+            const apiKey = sessionStorage.getItem('api_key');
+            if (!apiKey) {
+                alert('Please add your API key via the settings (gear icon).');
+                return;
+            }
 
             const form = document.getElementById('upload-form');
             const formData = new FormData(form);
 
+            const loadingDiv = document.getElementById('loading');
+            const logContainer = document.getElementById('log-container');
+            const logMessagesDiv = document.getElementById('log-messages');
+
+            logMessagesDiv.innerHTML = '';  // Clear log messages
+            loadingDiv.style.display = 'block';  // Show loading indicator
+            logContainer.style.display = 'block';  // Show log container
+
+            // Attach the API key to the form data
+            formData.append('api_key', apiKey);
+
+            // Listen to server-sent events for log updates
+            const eventSource = new EventSource('http://localhost:8000/logs/');
+            eventSource.onmessage = function(event) {
+                logMessagesDiv.innerHTML += `<p>${event.data}</p>`;
+                logMessagesDiv.scrollTop = logMessagesDiv.scrollHeight;  // Auto-scroll to the bottom
+            };
+
+            // Submit the form data
             const response = await fetch('http://localhost:8000/generate-letter', {
                 method: 'POST',
                 body: formData
             });
+
+            loadingDiv.style.display = 'none';  // Hide loading indicator
 
             if (response.ok) {
                 const blob = await response.blob();
@@ -51,10 +211,13 @@
                 downloadLink.download = "Motivation_Letter.docx";
                 resultDiv.style.display = 'block';
             } else {
-                alert('Error generating motivation letter');
+                const errorText = await response.text();
+                alert('Error generating motivation letter: ' + errorText);
             }
+
+            // Close the event source after the process is complete
+            eventSource.close();
         });
     </script>
 </body>
 </html>
-
