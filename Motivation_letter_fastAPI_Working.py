@@ -1,6 +1,5 @@
 from fastapi import FastAPI, File, UploadFile, Form, Depends
-from fastapi.responses import RedirectResponse
-from fastapi.responses import StreamingResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional
@@ -16,21 +15,19 @@ import logging
 from sse_starlette.sse import EventSourceResponse
 
 # Setup logging configuration
-# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s', handlers=[logging.StreamHandler()])
 logger = logging.getLogger(__name__)
 
 # Configuration setup
 config_list = autogen.config_list_from_json(env_or_file="OAI_CONFIG_LIST")
 filtered_config_list = [item for item in config_list if item["model"] == "gpt-4"]
-# print(filtered_config_list)
 llm_config = {"config_list": filtered_config_list}
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Or replace "*" with your Netlify URL or other trusted domains
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -39,26 +36,30 @@ app.add_middleware(
 # Serve static files (HTML, CSS, etc.)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-
 log_messages = []  # A global list to store logs
 
 # Custom handler for capturing logs in real-time with forced flushing
 class LogListHandler(logging.Handler):
     def emit(self, record):
         log_entry = self.format(record)
-        log_messages.append(log_entry)  # Append to log_messages immediately
+        log_messages.append(log_entry)
         self.flush()
 
     def flush(self):
-        pass  # Normally, flushing happens automatically for in-memory handlers like this
-
-
+        pass
 
 # Add the custom handler to capture logs
 log_handler = LogListHandler()
 log_handler.setLevel(logging.INFO)
 log_handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
 logger.addHandler(log_handler)
+
+# Global dictionary to store session data (for simplicity)
+session_data = {
+    "user_feedback": None,
+    "last_generated_output": None,
+    "current_job_description": None
+}
 
 # SSE endpoint to stream logs
 @app.get("/logs/")
@@ -67,16 +68,10 @@ async def stream_logs():
         while True:
             if log_messages:
                 message = log_messages.pop(0)
-                yield f"data: {message}\n\n"  # Send log message to the client
-            await asyncio.sleep(0.1)  # Reduce sleep time for near real-time updates
+                yield f"data: {message}\n\n"
+            await asyncio.sleep(0.1)
 
     return EventSourceResponse(log_generator())
-
-
-# Root route
-@app.get("/")
-async def serve_index():
-    return RedirectResponse(url="/static/index.html")
 
 # Root route that redirects to the static index.html
 @app.get("/")
@@ -86,29 +81,50 @@ async def serve_index():
 # Asynchronous resume upload and motivation letter generation
 @app.post("/generate-letter/")
 async def generate_motivation_letter(
-    api_key: str = Form(...), resume_file: UploadFile = File(...), job_description: str = Form(...)
+    api_key: str = Form(...), 
+    resume_file: UploadFile = File(...), 
+    job_description: str = Form(...), 
+    user_feedback: Optional[str] = Form(None)  # Accepting feedback as 'user_feedback'
 ):
+    
+    global session_data
+    
+    # Ensure feedback ends with a period
+    if user_feedback and not user_feedback.endswith('.'):
+        user_feedback += '.'
+
+    # Reset feedback and output if a new job description is provided
+    if session_data["current_job_description"] != job_description:
+        session_data["current_job_description"] = job_description
+        session_data["user_feedback"] = user_feedback
+        session_data["last_generated_output"] = None
+    else:
+        # Append new feedback to existing feedback if additional feedback is provided
+        if user_feedback:
+            session_data["user_feedback"] = (
+                session_data["user_feedback"] + " " + user_feedback if session_data["user_feedback"] else user_feedback
+            )
+
     await asyncio.sleep(1)
     logger.info("Received request to generate motivation letter...")
     await asyncio.sleep(1)
-
-    # llm_config = {
-    #     "config_list": [
-    #         {
-    #             "model": "gpt-4",
-    #             "api_key": api_key  # Use the user-provided API key
-    #         }
-    #     ]
-    # }
 
     # Asynchronously read the resume
     resume_df = pd.read_excel(resume_file.file, sheet_name="Jobs")
     await asyncio.sleep(1)
     logger.info("Processing resume file...")
-    await asyncio.sleep(1)  # Non-blocking sleep to allow streaming of logs
+    await asyncio.sleep(1)
 
-    # Simulate the motivation letter generation process
-    motivation_letter_result = await run_letter_creation_process(resume_df, job_description)
+    # Run the letter creation process using stored feedback and last output
+    motivation_letter_result = await run_letter_creation_process(
+        resume_df, 
+        job_description, 
+        session_data["user_feedback"],
+        session_data["last_generated_output"]
+    )
+
+    # Update the last generated output in the session data
+    session_data["last_generated_output"] = motivation_letter_result
 
     # Generate motivation letter as a Word document in-memory
     document = Document()
@@ -132,8 +148,7 @@ async def generate_motivation_letter(
         headers={"Content-Disposition": "attachment; filename=motivation_letter.docx"},
     )
 
-
-# Calculate the ranges of experiene in skills, sectors, functions and tooling. E.g. [(2015, 2017), (2013, 2014)]
+# Calculate the ranges of experience in skills, sectors, functions, and tooling
 def merge_date_ranges(ranges):
     if not ranges:
         return []
@@ -149,18 +164,11 @@ def merge_date_ranges(ranges):
             merged_ranges.append((current_start, current_end))
             current_start, current_end = start, end
     merged_ranges.append((current_start, current_end))
-    
-    # print(f"Merged ranges: {merged_ranges}")  # Debug statement
     return merged_ranges
 
-# Calculate the actual years of experience in skills, sectors, functions and tooling
+# Calculate the actual years of experience in skills, sectors, functions, and tooling
 def calculate_experience(resume):
-    experience = {
-        "skills": {},
-        "sector": {},
-        "function": {},
-        "tools": {}
-    }
+    experience = {"skills": {}, "sector": {}, "function": {}, "tools": {}}
 
     def add_experience(experience_dict, category, start_year, end_year):
         if category not in experience_dict:
@@ -192,29 +200,19 @@ def calculate_experience(resume):
     # Merge date ranges and calculate unique years of experience
     for category in experience:
         for key in experience[category]:
-            # print(f"Category: {category}, Key: {key}, Ranges before merge: {experience[category][key]}")  # Debug statement
             merged_ranges = merge_date_ranges(experience[category][key])
             unique_years = sum(end - start + 1 for start, end in merged_ranges)
             experience[category][key] = unique_years
-            # print(f"Category: {category}, Key: {key}, Unique years: {unique_years}")  # Debug statement
-
     return experience
 
-
 # Asynchronous function to simulate the letter creation process
-async def run_letter_creation_process(resume_df, job_description):
+async def run_letter_creation_process(resume_df, job_description, user_feedback=None, last_output=None):
     await asyncio.sleep(1)
     logger.info("Calculating experience...")
     await asyncio.sleep(1)
 
-    # Simulate processing delay asynchronously
-    await asyncio.sleep(2)  # Simulate a long-running task
     # Calculate experience
     experience = calculate_experience(resume_df)
-
-    # Print the calculated experience
-    # print("Experience calculated from Excel file:")
-    # print(experience)
 
     resume_details = "\n\n".join(
         f"Company: {row['Company']}\n"
@@ -249,9 +247,7 @@ async def run_letter_creation_process(resume_df, job_description):
         },
     )
 
-
     # Matching agent
-    # job_description = input("Please enter the job description: ") # This is the start of the 'conversation' where the user pastes in a job-description
     await asyncio.sleep(1)
     logger.info("Matching resume to job description...")
     await asyncio.sleep(1)
@@ -289,7 +285,6 @@ async def run_letter_creation_process(resume_df, job_description):
     Calculated Experience: {experience_input}
     """
 
-
     match_results = autogen.initiate_chats(
         [
             {
@@ -304,14 +299,12 @@ async def run_letter_creation_process(resume_df, job_description):
 
     match_result = match_results[0].summary
 
-    # Ensure the matching process is complete
     if "MATCH_DONE" not in match_result:
         raise Exception("Matching process did not complete successfully.")
 
-
     # Strategy agent
     await asyncio.sleep(1)
-    logger.info("Develop custom wrinting strategy...")
+    logger.info("Develop custom writing strategy...")
     await asyncio.sleep(1)
 
     strategy_task = """
@@ -323,7 +316,8 @@ async def run_letter_creation_process(resume_df, job_description):
     4. Guidance on using persuasive language and maintaining a professional tone.
     5. Approaches for emphasizing the applicant's unique value, focusing on specific skills or experiences that distinguish them from other candidates and benefit the organization.
     6. Best practices for proofreading and editing to ensure error-free, polished documents.
-    7. Suggestions for dynamic opening lines and compelling closing statements that make a memorable impact and urge the reader to take action.
+    7. Very important is dynamic and captivating first opening line and compelling closing statements that make a memorable impact and urge the reader to take action.
+    8. Never lie, you can enhance facts, but not make up ones. 
 
     Compile these guidelines into a comprehensive document.
 
@@ -334,31 +328,14 @@ async def run_letter_creation_process(resume_df, job_description):
         name="Strategy_Agent",
         llm_config=llm_config,
         system_message="""
-            You are an expert in crafting effective and persuasive motivation and cover letters tailored for various applications. 
-            Your task is to develop an advanced strategy for writing these letters, considering different contexts such as job applications, university admissions, and grant proposals. 
-            The strategy should encompass the following areas:
-            
-            1. **Purpose and Audience Analysis**: Provide methods to identify the purpose of each letter and align it with the organization's goals. 
-            Include guidelines for analyzing the intended audience to tailor the content appropriately.
-            
-            2. **Content Structuring and Personalization**: Suggest a plan for structuring the letters and personalizing them to highlight the applicant's unique skills, passions, and qualifications. 
-            Emphasize the importance of mentioning relevant achievements.
-            
-            3. **Persuasive Language Usage**: Offer guidance on using persuasive language and maintaining a professional tone to effectively engage the reader.
-            
-            4. **Highlighting Unique Value**: Propose strategies to emphasize the applicant's unique value, focusing on specific skills or experiences that distinguish them from other candidates 
-            and offer particular benefits to the organization.
-            
-            5. **Proofreading and Editing Best Practices**: Recommend best practices for ensuring the documents are error-free and polished.
-            
-            6. **Effective Openings and Closings**: Provide suggestions for dynamic opening lines and compelling closing statements that make a memorable impact and urge the reader to take action.
-            
-            Compile these guidelines into a comprehensive document that can serve as a blueprint for drafting motivation and cover letters.
+            You are an expert in crafting job-specific motivation letter strategies. Your role is to analyze the job description 
+            and the candidate’s experience to produce a focused strategy for the letter. The strategy should include key points to highlight, 
+            suggested tone and style, structuring, and other stylistic recommendations that align with the company's culture and objectives.
+            Reply 'STRATEGY_DONE' at the end of your response.t that can serve as a blueprint for drafting motivation and cover letters.
             
             Reply 'STRATEGY_DONE' at the end of your response.
             """,
     )
-
 
     # Step 2: Find the best strategy for the motivation letter
     strategy_input = f"""
@@ -383,10 +360,8 @@ async def run_letter_creation_process(resume_df, job_description):
 
     strategy_result = strategy_results[0].summary
 
-    # Ensure the strategy generation is complete
     if "STRATEGY_DONE" not in strategy_result:
         raise Exception("Strategy generation did not complete successfully.")
-
 
     # Writer agent
     await asyncio.sleep(1)
@@ -394,18 +369,14 @@ async def run_letter_creation_process(resume_df, job_description):
     await asyncio.sleep(1)
 
     motivation_letter_task = """
-    Write a compelling motivation letter based on the matches found between the job description and the candidate's experience, 
-    and following the provided strategy guidelines. The letter should:
+    Using the provided strategy, write a compelling motivation letter based on the job description and the candidate’s experience. Ensure the letter:
 
-    1. Highlight the most relevant skills, experiences, and achievements of the candidate, with a focus on key achievements and quantifiable results.
-    2. Use persuasive and engaging language while maintaining a professional tone.
-    3. Be well-structured, starting with a strong, engaging, and memorable opening, detailed body, and a compelling closing.
-    4. Reflect the candidate's unique value and how they align with the job requirements and the company's mission and goals.
-    5. Include a clear and compelling call to action.
-    6. Ensure the content is coherent, clear, and free from grammatical errors.
-    7. Tailor the content specifically to the job and company, demonstrating a deep understanding of their needs and culture.
-    8. Include relevant keywords from the job description to ensure it passes through Applicant Tracking Systems (ATS).
-    9. Showcase the candidate's enthusiasm for the role and how they fit into the company culture.
+    1. Highlights the most relevant skills, experiences, and achievements.
+    2. Follows the outlined structure and tone as per the strategy.
+    3. Includes a clear and persuasive call to action.
+    4. Demonstrates the candidate's fit for the role and the company's mission and culture.
+    5. Uses engaging language while maintaining a professional tone.
+    6. Is tailored specifically to the job and company with relevant keywords.
 
     Reply 'TERMINATE' at the end of your response.
     """
@@ -414,11 +385,10 @@ async def run_letter_creation_process(resume_df, job_description):
         name="Writing_Agent",
         llm_config=llm_config,
         system_message="""
-            You are a professional writer specializing in crafting compelling motivation letters. 
-            Your task is to create a motivation letter based on the matches between the job description and the candidate's experience, 
-            using the provided strategy guidelines. The letter should be persuasive, well-structured, and tailored to highlight the candidate's 
-            unique qualifications and achievements relevant to the job. Ensure the language is engaging and professional, and the content is 
-            aligned with the strategy's recommendations.
+            You are a professional writer specializing in crafting compelling motivation letters based on a provided strategy. 
+            Your task is to draft the motivation letter by following the structured outline, tone, and emphasis detailed in the strategy. 
+            Focus on highlighting the candidate’s relevant achievements, skills, and experiences to make them a strong fit for the job.
+            Reply 'TERMINATE' at the end of your response.
 
             Reply 'TERMINATE' at the end of your response.
             """,
@@ -430,6 +400,11 @@ async def run_letter_creation_process(resume_df, job_description):
     Strategy suggested: {strategy_result}
     Resume Details: {resume_details}
     """
+
+    if last_output:
+        motivation_letter_input += f"\n\nPrevious Output: {last_output}"
+    if user_feedback:
+        motivation_letter_input += f"\n\nUser Feedback: {user_feedback}"
 
     motivation_letter_results = autogen.initiate_chats(
         [
@@ -504,14 +479,11 @@ async def run_letter_creation_process(resume_df, job_description):
     if "QUALITY_DONE" not in quality_check_result and "REWRITE_NEEDED" not in quality_check_result:
         raise Exception("Quality check did not complete successfully.")
 
-    # Handle feedback if a rewrite is needed
+    # If quality check recommends rewriting, additional feedback is incorporated
     if "REWRITE_NEEDED" in quality_check_result:
         feedback = quality_check_result.replace('REWRITE_NEEDED', '').strip()
-        print("Quality check feedback received, rewriting the motivation letter...")
-        await asyncio.sleep(1)
-        logger.info("Quality check feedback received, rewriting the motivation letter...")
-        await asyncio.sleep(1)
-
+        if user_feedback:
+            feedback += f"\nUser Feedback: {user_feedback}"
         motivation_letter_results = autogen.initiate_chats(
             [
                 {
@@ -524,12 +496,9 @@ async def run_letter_creation_process(resume_df, job_description):
                 }
             ]
         )
-
         motivation_letter_result = motivation_letter_results[0].summary
 
-        return motivation_letter_result
-
-
+    return motivation_letter_result
 
 if __name__ == "__main__":
     import uvicorn

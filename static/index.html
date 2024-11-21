@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -43,28 +42,31 @@
             font-size: 20px;
         }
 
-        /* Warning message and arrow */
+        /* Warning message */
         .warning-message {
             color: red;
             display: none;
             margin-bottom: 10px;
         }
 
-        /* .arrow {
-            display: none;
-            margin-bottom: 10px;
-            font-size: 24px;
-            text-align: center;
-        } */
+        /* Additional spacing */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        /* Horizontal line styling */
+        .divider {
+            border: none;
+            border-top: 2px solid #ccc;
+            margin: 20px 0;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Generate Your Motivation Letter</h1>
 
-        <!-- Warning message and arrow if no API key is provided -->
-        <div class="warning-message">⚠️ No API key provided. Please add one using the gear icon.</div>
-        <!-- <div class="arrow">⬇️</div> -->
+        <div class="warning-message">⚠️ No API key provided. Please add one using the gear icon on the top right.</div>
 
         <!-- File Upload and Job Description Form -->
         <form id="upload-form" enctype="multipart/form-data">
@@ -73,9 +75,18 @@
                 <input type="file" id="resume" name="resume_file" accept=".xlsx" required>
             </div>
 
+            <hr class="divider">
+
             <div class="form-group">
                 <label for="job_description">Job Description:</label>
                 <textarea id="job_description" name="job_description" placeholder="Enter the job description" required></textarea>
+            </div>
+
+            <hr class="divider">
+
+            <div class="form-group">
+                <label for="feedback">Feedback (Initial & Post-Download):</label>
+                <textarea id="feedback" name="user_feedback" placeholder="Enter any initial feedback or specific highlights you want to include"></textarea>
             </div>
 
             <button type="submit">Generate Letter</button>
@@ -85,10 +96,6 @@
         <div id="log-container" style="display: none;">
             <h3>Generation Progress</h3>
             <div id="log-messages"></div>
-        </div>
-        <div id="result" style="display:none;">
-            <h3>Your Motivation Letter is Ready!</h3>
-            <a id="download-link" href="#">Download Motivation Letter</a>
         </div>
 
         <!-- Gear icon for settings -->
@@ -112,58 +119,40 @@
     </div>
 
     <script>
-        // Manage API Key
+        // Manage API Key and display warning
         const gearIcon = document.getElementById('gear-icon');
         const overlay = document.getElementById('settings-overlay');
         const closeOverlay = document.getElementById('close-overlay');
         const warningMessage = document.querySelector('.warning-message');
-        // const arrow = document.querySelector('.arrow');
         const apiKeyForm = document.getElementById('api-key-form');
         const deleteKeyButton = document.getElementById('delete-key');
 
-        // Show overlay when gear icon is clicked
-        gearIcon.addEventListener('click', () => {
-            overlay.style.display = 'flex';
-        });
+        gearIcon.addEventListener('click', () => { overlay.style.display = 'flex'; });
+        closeOverlay.addEventListener('click', () => { overlay.style.display = 'none'; });
 
-        // Close overlay
-        closeOverlay.addEventListener('click', () => {
-            overlay.style.display = 'none';
-        });
-
-        // Check if API key exists in sessionStorage and show/hide warning
         function checkApiKey() {
             const apiKey = sessionStorage.getItem('api_key');
-            if (!apiKey) {
-                warningMessage.style.display = 'block';
-                // arrow.style.display = 'block';
-            } else {
-                warningMessage.style.display = 'none';
-                // arrow.style.display = 'none';
-            }
+            warningMessage.style.display = apiKey ? 'none' : 'block';
         }
 
-        // Handle API key form submission
         apiKeyForm.addEventListener('submit', (event) => {
             event.preventDefault();
             const apiKey = document.getElementById('api_key').value;
             sessionStorage.setItem('api_key', apiKey);
             overlay.style.display = 'none';
-            checkApiKey();  // Re-check API key after saving
+            checkApiKey();
         });
 
-        // Delete the stored API key
         deleteKeyButton.addEventListener('click', () => {
             sessionStorage.removeItem('api_key');
-            document.getElementById('api_key').value = '';  // Clear the input field
+            document.getElementById('api_key').value = '';
             overlay.style.display = 'none';
-            checkApiKey();  // Re-check API key after deletion
+            checkApiKey();
         });
 
-        // Initial check on page load
         checkApiKey();
 
-        // File upload and letter generation logic
+        // Handle form submission
         document.getElementById('upload-form').addEventListener('submit', async function(event) {
             event.preventDefault();
 
@@ -175,112 +164,48 @@
 
             const form = document.getElementById('upload-form');
             const formData = new FormData(form);
+            formData.append('api_key', apiKey);
 
             const loadingDiv = document.getElementById('loading');
             const logContainer = document.getElementById('log-container');
             const logMessagesDiv = document.getElementById('log-messages');
 
-            logMessagesDiv.innerHTML = '';  // Clear log messages
-            loadingDiv.style.display = 'block';  // Show loading indicator
-            logContainer.style.display = 'block';  // Show log container
-
-            // Attach the API key to the form data
-            formData.append('api_key', apiKey);
+            logMessagesDiv.innerHTML = '';  
+            loadingDiv.style.display = 'block';  
+            logContainer.style.display = 'block';
 
             // Listen to server-sent events for log updates
             const eventSource = new EventSource('http://localhost:8000/logs/');
             eventSource.onmessage = function(event) {
                 logMessagesDiv.innerHTML += `<p>${event.data}</p>`;
-                logMessagesDiv.scrollTop = logMessagesDiv.scrollHeight;  // Auto-scroll to the bottom
+                logMessagesDiv.scrollTop = logMessagesDiv.scrollHeight;
             };
 
-            // Submit the form data
+            // Submit form data
             const response = await fetch('http://localhost:8000/generate-letter', {
                 method: 'POST',
                 body: formData
             });
 
-            loadingDiv.style.display = 'none';  // Hide loading indicator
+            loadingDiv.style.display = 'none';
+            eventSource.close();
 
             if (response.ok) {
                 const blob = await response.blob();
                 const url = URL.createObjectURL(blob);
 
-                const resultDiv = document.getElementById('result');
-                const downloadLink = document.getElementById('download-link');
-                downloadLink.href = url;
-                downloadLink.download = "Motivation_Letter.docx";
-                resultDiv.style.display = 'block';
+                // Auto-download file
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "Motivation_Letter.docx";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
             } else {
                 const errorText = await response.text();
                 alert('Error generating motivation letter: ' + errorText);
             }
-
-            // Close the event source after the process is complete
-            eventSource.close();
         });
     </script>
 </body>
 </html>
-=======
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Motivation Letter Generator</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <div class="container">
-        <h1>Generate Your Motivation Letter</h1>
-        <form id="upload-form" enctype="multipart/form-data" action="http://0.0.0.0:5000/generate-letter">
-            <div class="form-group">
-                <label for="resume">Upload Resume (Excel File):</label>
-                <input type="file" id="resume" name="resume_file" required>
-            </div>
-
-            <div class="form-group">
-                <label for="job_description">Job Description:</label>
-                <textarea id="job_description" name="job_description" placeholder="Enter the job description" required></textarea>
-            </div>
-
-            <button type="submit">Generate Letter</button>
-        </form>
-
-        <div id="result" style="display:none;">
-            <h3>Your Motivation Letter is Ready!</h3>
-            <a id="download-link" href="#">Download Motivation Letter</a>
-        </div>
-    </div>
-
-    <script>
-        document.getElementById('upload-form').addEventListener('submit', async function(event) {
-            event.preventDefault(); // Prevent traditional form submission
-
-            const form = document.getElementById('upload-form');
-            const formData = new FormData(form);
-
-            const response = await fetch('http://localhost:5000/generate-letter', {
-                method: 'POST',
-                body: formData
-            });
-
-            if (response.ok) {
-                const blob = await response.blob();
-                const url = URL.createObjectURL(blob);
-
-                const resultDiv = document.getElementById('result');
-                const downloadLink = document.getElementById('download-link');
-                downloadLink.href = url;
-                downloadLink.download = "Motivation_Letter.docx";
-                resultDiv.style.display = 'block';
-            } else {
-                alert('Error generating motivation letter');
-            }
-        });
-    </script>
-</body>
-</html>
-
->>>>>>> 79a0cb5e42c981979d4154fe6b0d8b2bcddb2dcc
