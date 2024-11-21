@@ -60,6 +60,18 @@
             border-top: 2px solid #ccc;
             margin: 20px 0;
         }
+
+        .template-link {
+            color: #007bff;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .template-link:hover {
+            text-decoration: none;
+            color: #0056b3;
+        }
+
     </style>
 </head>
 <body>
@@ -71,9 +83,13 @@
         <!-- File Upload and Job Description Form -->
         <form id="upload-form" enctype="multipart/form-data">
             <div class="form-group">
-                <label for="resume">Upload Resume (Excel File):</label>
+                <label for="resume">
+                    Upload Resume (
+                    <a href="/download-template/" class="template-link" download>Template</a>
+                    ):
+                </label>
                 <input type="file" id="resume" name="resume_file" accept=".xlsx" required>
-            </div>
+            </div>            
 
             <hr class="divider">
 

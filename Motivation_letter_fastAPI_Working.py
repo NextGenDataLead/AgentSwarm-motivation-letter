@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import logging
 from sse_starlette.sse import EventSourceResponse
+from fastapi.responses import FileResponse
 
 # Setup logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s', handlers=[logging.StreamHandler()])
@@ -146,6 +147,16 @@ async def generate_motivation_letter(
         file_stream,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         headers={"Content-Disposition": "attachment; filename=motivation_letter.docx"},
+    )
+
+@app.get("/download-template/")
+async def download_template():
+    # Path to the template file
+    template_path = os.path.join("Resume", "TEMPLATE_Resume_tabular.xlsx")
+    return FileResponse(
+        path=template_path,
+        filename="TEMPLATE_Resume_tabular.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
 # Calculate the ranges of experience in skills, sectors, functions, and tooling
