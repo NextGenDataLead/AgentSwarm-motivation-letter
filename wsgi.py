@@ -1,4 +1,4 @@
-from Motivation_letter_fastAPI2 import app
+from Motivation_letter import app
  
 if __name__ == '__main__':
    app.run()
