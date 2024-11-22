@@ -1,8 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, Form, Depends
 from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
-from typing import Optional
 from io import BytesIO
 from docx import Document
 import pandas as pd
@@ -14,6 +12,7 @@ import asyncio
 import logging
 from sse_starlette.sse import EventSourceResponse
 from fastapi.responses import FileResponse
+from typing import Optional
 
 # Setup logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s', handlers=[logging.StreamHandler()])
