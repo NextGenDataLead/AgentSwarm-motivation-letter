@@ -1,20 +1,7 @@
-note from aleks:
-
-use "Motivation_letter_fastAPI2.py", disregard the rest until we organize everything better
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Live Frontend:
+```
+agent-swarm-motivation-letter.vercel.app
+```
 
 # Agent Swarm motivation letter
 
